@@ -33,11 +33,17 @@ const createBlog = async (req, res) => {
 
 const getAllBlogs = async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
     const blogs = await blogModel
       .find({}, { _id: 1, title: 1, subTitle: 1, image: 1 })
-      .limit(21)
+      // .limit(21)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
       .lean();
-    return res.status(200).send({ blogs });
+
+    const total = await blogModel.countDocuments();
+    return res.status(200).send({ blogs, total });
   } catch (error) {
     console.error(error);
     return res
@@ -50,10 +56,14 @@ const getBlogById = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.id;
-    const blog = await blogModel.findById(id).populate("author").populate({
-      path: 'comments.author',
-      model: 'users'
-    }).lean();
+    const blog = await blogModel
+      .findById(id)
+      .populate("author")
+      .populate({
+        path: "comments.author",
+        model: "users",
+      })
+      .lean();
     if (!blog) {
       return res.status(404).send({ error: "Blog not found" });
     }
@@ -74,6 +84,7 @@ const getBlogsByUser = async (req, res) => {
     const { id } = req;
     const blogs = await blogModel
       .find({ author: id }, { _id: 1, image: 1, title: 1, subTitle: 1 })
+      .sort({ createdAt: -1 })
       .lean();
     if (!blogs) {
       return res.status(404).send({ error: "Blog not found" });
@@ -172,5 +183,5 @@ module.exports = {
   getBlogsByUser,
   deleteBlogById,
   editBlogById,
-  addCommentToBlog
+  addCommentToBlog,
 };
